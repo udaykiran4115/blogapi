@@ -73,12 +73,12 @@ app.get('/blogs/:id', function(req, res){
 //Update the blog instance 
 app.put('/blogs/:id', function(req, res){
     var updateData = req.body
-    /*Blog.findOneAndUpdate({'_id': req.params.id}, updateData, function(err,result){
+    Blog.findOneAndUpdate({'_id': req.params.id}, updateData, function(err,result){
         if(err)
             res.send(err)
         else
             res.send(result)
-    })*/
+    })
 })
 
 app.delete('/blogs/:id', function(req, res){
