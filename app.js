@@ -1,100 +1,87 @@
-var express = require('express');
-var app = express();
-var bodyParser = require('body-parser')
+const express = require('express');
+const app =  express();
+const port = process.env.PORT || 8000
 
-var mongoose = require('mongoose');
+const bodyParser = require('body-parser')
+const morgan = require('morgan');
+const mongoose = require('mongoose')
 
-mongoose.connect("mongodb://localhost/blog");
-mongoose.connection.on('open', function(err){
-    if(err)
-        console.log('Something went wrong while connecting to Database.:(') //On failure
-    
-    //on Success
-    console.log('DataBase connection is Open...')
-})
+const productRoutes = require('./api/routes/products');
+const orderRoutes = require('./api/routes/orders');
 
-app.use(bodyParser.urlencoded({extended:true}));
+const options = {
+	
+	native_parser: true,
+		
+	poolSize: 5,
+			
+	user: 'admin',
+		
+	pass: 'admin',
+			
+	promiseLibrary: global.Promise,
+		
+	autoIndex: false, // Don't build indexes
+		    
+	reconnectTries: 30, // Retry up to 30 times
+		   
+	reconnectInterval: 500, // Reconnect every 500ms
+	
+        bufferMaxEntries: 0,
+	
+	connectWithNoPrimary: true 
+		
+};
+		
+
+mongoose.connect('mongodb://admin:' + process.env.MONGO_ATLAS_PW + '@node-rest-shop-shard-00-00-ycjdj.mongodb.net:27017,node-rest-shop-shard-00-01-ycjdj.mongodb.net:27017,node-rest-shop-shard-00-02-ycjdj.mongodb.net:27017/test?ssl=true&replicaSet=node-rest-shop-shard-0&authSource=admin&retryWrites=true', options);
+/*mongoose.connection.on('error', (err) => {		
+
+	mediator.emit('db.error', err);
+
+});
+		
+mongoose.connection.on('connected', () => {
+
+	mediator.emit('db.ready', mongoose);
+
+});*/
+
+/*mongoose.connect('mongodb://admin:' + process.env.MONGO_ATLAS_PW + '@node-rest-shop-shard-00-00-ycjdj.mongodb.net:27017,node-rest-shop-shard-00-01-ycjdj.mongodb.net:27017,node-rest-shop-shard-00-02-ycjdj.mongodb.net:27017/test?ssl=true&replicaSet=node-rest-shop-shard-0&authSource=admin&retryWrites=true',
+{
+  usemongoClient:true
+})*/
+
+app.use(morgan('dev'));
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({extended: true}));
 
-//get the schema
-var Blog = require('./schema.js')
-
-//get on root.
-app.get('/', function(req, res){
-    res.send('You have called the root..')
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accepted, Authorization');
+  if(req.method === 'OPTIONS'){
+    res.header('Access-Control-Allow-Methods', 'GET, PUT, POST, PATCH, DELETE'),
+    res.status(200).json({});
+  }
+  next();
 })
 
-// Get request to get all the blogs.
-app.get('/blogs', function(req, res){
-    Blog.find(function(err,blogs){
-        res.json(blogs)
-    })
+app.use('/products', productRoutes)
+app.use('/orders', orderRoutes)
+
+app.use((req, res, next)=>{
+  const error = new Error('Not Found');
+  error.status(404);
+  next(error)
 })
 
-app.post('/blogs', function(req,res){
-    console.log(req.body)
-    newBlog = new Blog({
-        name : req.body.name,
-        author : req.body.author,
-        comments : req.body.comments,
-        likes : req.body.likes
-        
-    })
-    
-    let date = new Date()
-    newBlog.createdOn = date;
-    newBlog.updatedOn = date;
-    
-    newBlog.save(function(err){
-        if(err)
-            res.status(400).send(err);
-        else
-            res.send(newBlog)
-        
-    })
-    
+app.use((error, req, res, next)=>{
+  res.status(error.status || 500)
+  res.json({
+    error:{ message: error.message} 
+  })
 })
 
-// Get request for blog instance.
-app.get('/blogs/:id', function(req, res){
-    Blog.findById(req.params.id,function(err,blogs){
-        if(err)
-            res.send(err)
-        if(blogs == null){
-            console.log("################ BLog is emply")
-            res.status(404).send('Sorry, we cannot find that!');
-        } else{
-            res.send(blogs)
-        }
-        
-    })
+app.listen(port, function(){
+  console.log('Server listening at '+port)
 })
-
-//Update the blog instance 
-app.put('/blogs/:id', function(req, res){
-    var updateData = req.body
-    Blog.findOneAndUpdate({'_id': req.params.id}, updateData, function(err,result){
-        if(err)
-            res.send(err)
-        else
-            res.send(result)
-    })
-})
-
-app.delete('/blogs/:id', function(req, res){
-    console.log("################### in Delete")
-    Blog.remove({'_id': req.params.id}, function(err,result){
-        if(err)
-            res.send(err)
-        else
-            res.send({"Success": "Deleted."})
-    })
-     
-})
-
-//server listening to port number.
-app.listen(3000, function(){
-    console.log('Listening to the port 3000');
-})
-
-
